@@ -246,11 +246,11 @@ class Dataset(torch.utils.data.Dataset):
         result_dict.update(scaled_data)
 
         ### Temporal mask
-        temporal_padding_mask = np.ones(data[self.config.target_col].shape, dtype=np.float32).squeeze()
+        temporal_mask = np.ones(data[self.config.target_col].shape, dtype=np.float32).squeeze()
         target_fcst_mask =  np.ones(data[self.config.target_col].shape, dtype=np.float32).squeeze()
         target_fcst_mask[hist_len:] = 0
         
-        result_dict.update({"temporal_padding_mask":temporal_padding_mask, "target_fcst_mask":target_fcst_mask})
+        result_dict.update({"temporal_mask":temporal_mask, "target_fcst_mask":target_fcst_mask})
         
         # Img data
         for col in self.config.img_cols:
@@ -270,9 +270,9 @@ class Dataset(torch.utils.data.Dataset):
             num_remain = int(np.ceil(nlp_data.shape[-1] * self.config.remain_rto["nlp"]))
             assert num_remain > 0, f"{nlp_data.shape}, {self.config.remain_rto['nlp']}"
             nlp_remain_idx, nlp_masked_idx, nlp_revert_idx = get_indices(nlp_data.shape, num_remain)
-            nlp_remain_padding_mask = np.ones(nlp_remain_idx.shape); nlp_masked_padding_mask = np.ones(nlp_masked_idx.shape); nlp_revert_padding_mask = np.ones(nlp_revert_idx.shape)
+            nlp_remain_mask = np.ones(nlp_remain_idx.shape); nlp_masked_mask = np.ones(nlp_masked_idx.shape); nlp_revert_mask = np.ones(nlp_revert_idx.shape)
             result_dict.update({f"{col}_raw":nlp_raw, f"{col}":nlp_data.squeeze(), f"{col}_remain_idx":nlp_remain_idx.numpy()[0], f"{col}_masked_idx":nlp_masked_idx.numpy()[0], f"{col}_revert_idx":nlp_revert_idx.numpy()[0], 
-                                f"{col}_remain_padding_mask":nlp_remain_padding_mask[0], f"{col}_masked_padding_mask":nlp_masked_padding_mask[0], f"{col}_revert_padding_mask":nlp_revert_padding_mask[0]})
+                                f"{col}_remain_mask":nlp_remain_mask[0], f"{col}_masked_mask":nlp_masked_mask[0], f"{col}_revert_mask":nlp_revert_mask[0]})
         os.environ["TOKENIZERS_PARALLELISM"] = "true"
         
         return result_dict
@@ -288,9 +288,9 @@ def collate_fn(batch_li, config):
         result_dict[f"{col}"] = torch.nn.utils.rnn.pad_sequence(data, batch_first=True)
 
     ### Temporal mask
-    temporal_padding_mask = [torch.from_numpy(batch["temporal_padding_mask"]) for batch in batch_li]
+    temporal_mask = [torch.from_numpy(batch["temporal_mask"]) for batch in batch_li]
     target_fcst_mask = [torch.from_numpy(batch["target_fcst_mask"]) for batch in batch_li]
-    result_dict["temporal_padding_mask"] = torch.nn.utils.rnn.pad_sequence(temporal_padding_mask, batch_first=True)
+    result_dict["temporal_mask"] = torch.nn.utils.rnn.pad_sequence(temporal_mask, batch_first=True)
     result_dict["target_fcst_mask"] = torch.nn.utils.rnn.pad_sequence(target_fcst_mask, batch_first=True)
 
     # Image
@@ -302,15 +302,15 @@ def collate_fn(batch_li, config):
     for col in config.nlp_cols:
         nlp_raw = [batch[f"{col}_raw"] for batch in batch_li]
         nlp_data = [torch.from_numpy(batch[f"{col}"]) for batch in batch_li]
-        nlp_remain_padding_mask = [torch.from_numpy(batch[f"{col}_remain_padding_mask"]) for batch in batch_li]
-        nlp_masked_padding_mask = [torch.from_numpy(batch[f"{col}_masked_padding_mask"]) for batch in batch_li]
-        nlp_revert_padding_mask = [torch.from_numpy(batch[f"{col}_revert_padding_mask"]) for batch in batch_li]
+        nlp_remain_padding_mask = [torch.from_numpy(batch[f"{col}_remain_mask"]) for batch in batch_li]
+        nlp_masked_padding_mask = [torch.from_numpy(batch[f"{col}_masked_mask"]) for batch in batch_li]
+        nlp_revert_padding_mask = [torch.from_numpy(batch[f"{col}_revert_mask"]) for batch in batch_li]
         
         result_dict[f"{col}_raw"] = nlp_raw
         result_dict[col] = torch.nn.utils.rnn.pad_sequence(nlp_data, batch_first=True)
-        result_dict[f"{col}_remain_padding_mask"] = torch.nn.utils.rnn.pad_sequence(nlp_remain_padding_mask, batch_first=True)
-        result_dict[f"{col}_masked_padding_mask"] = torch.nn.utils.rnn.pad_sequence(nlp_masked_padding_mask, batch_first=True)
-        result_dict[f"{col}_revert_padding_mask"] = torch.nn.utils.rnn.pad_sequence(nlp_revert_padding_mask, batch_first=True)
+        result_dict[f"{col}_remain_mask"] = torch.nn.utils.rnn.pad_sequence(nlp_remain_padding_mask, batch_first=True)
+        result_dict[f"{col}_masked_mask"] = torch.nn.utils.rnn.pad_sequence(nlp_masked_padding_mask, batch_first=True)
+        result_dict[f"{col}_revert_mask"] = torch.nn.utils.rnn.pad_sequence(nlp_revert_padding_mask, batch_first=True)
         
         for idx_type in ["remain", "masked", "revert"]:
             try:

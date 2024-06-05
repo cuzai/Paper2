@@ -188,7 +188,7 @@ class MultiheadBlockAttention(torch.nn.Module):
         # Scaled dot product attention
         QK = Q @ K.permute(0,1,2,4,3)
         logits = QK / math.sqrt(d_model//self.nhead)
-        padding_mask = padding_mask.unsqueeze(1).expand(-1, logits.shape[1], -1, -1, -1)
+        padding_mask = padding_mask.unsqueeze(1).unsqueeze(-2).expand(-1, logits.shape[1], -1, logits.shape[-2], -1)
         logits += padding_mask
         attn_weight = torch.nn.functional.softmax(logits, dim=-1)
         assert torch.isnan(attn_weight).sum() == 0

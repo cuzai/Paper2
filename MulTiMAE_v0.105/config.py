@@ -20,7 +20,7 @@ class pre_train():
         return modality_info, processing_info
 
     def get_model_hyperparameter():
-        batch_size = 16
+        batch_size = 32
         dropout = 0.1
         patch_size = 16
         activation = "gelu"
